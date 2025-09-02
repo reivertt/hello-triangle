@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Hello Triangle - WebGL</title>
+        <style>
+            html, head, body {
+                margin: 0;
+                padding: 25px;
+                background-color: #2a2a2a;
+            }
+            #demo-canvas {
+                width: 800px;
+                height: 800px;
+                background-color: #da6052;
+            }
+            #error-box {
+                color: #fd8080;
+                font-weight: 500;
+                font-size: 18pt;
+                border: 1px solid white;
+                padding: 25px;
+                margin-top: 20px;
+            }
+
+            .error-box-title {
+                color: #eee;
+                border-bottom: 1px solid gray;
+            }
+            </style>
+        <div id="error-box"></div>
+    </head>
+    <body>
+        <canvas id="demo-canvas"></canvas>
+        <div id="error-box">
+            <span class="error-box-title">Error Messages, if any, go here</span>
+        </div>
+        <script src="hello-triangle.js" defer></script>
+    </body>
+</html>
