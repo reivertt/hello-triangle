@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
+    <title>WebGL App</title>
+    <style>
+        html, head, body {
+            margin: 0;
+            padding: 25px;
+            background-color: #2a2a2a;
+            color:#eee;
+        }
+        #gl-canvas {
+            width: 700px;
+            height: 700px;
+            background-color: #da6052;
+        }
+        #error-box {
+            min-width: 700px;
+            min-height: 600px;
+            color: #5fdfd8;
+            font-weight: 500;
+            font-size: 18pt;
+            border: 1px solid white;
+            padding: 25px;
+            /* margin-top: 20px; */
+        }
+
+        .error-box-title {
+            color: #eee;
+            border-bottom: 1px solid gray;
+        }
+
+        #tab {
+            white-space: pre;
+        }        
+    </style>
+</head>
+
+<body>
+    <div style="display:flex; gap:20px;">
+        <canvas id="gl-canvas" width="700" height="700"></canvas>
+        <div id="error-box">
+            <span class="error-box-title">Coordinate Updates</span>
+        </div>
+    </div>
+    
+    <select id="mymenu" size="2">
+        <option value="0">Triangle</option>
+        <option value="1">Line</option>
+    </select>
+    <div>
+        <div>
+            Red - 0<input id="red_slide" type="range"
+            min="0" max="1.0" step="0.1" value="0.3" />
+            1.0 
+        </div>
+        <div>
+            Green - 0<input id="green_slide" type="range"
+            min="0" max="1.0" step="0.1" value="0.0" />
+            1.0 
+        </div>
+        <div>
+            Blue - 0<input id="blue_slide" type="range"
+            min="0" max="1.0" step="0.1" value="0.5" />
+            1.0 
+        </div>
+        <div>
+            Transparency - 0<input id="alpha_slide" type="range"
+            min="0" max="1.0" step="0.1" value="1.0" />
+            1.0
+        </div>
+    </div>
+    <button id="generate">Generate</button>
+
+    <script id="vertex-shader" type="x-shader/x-vertex">
+    #version 300 es
+
+    in vec4 aPosition;
+
+    uniform vec4 thetaColor;
+    out vec4 vColor;
+
+    void
+    main()
+    {
+        gl_PointSize = 20.0;
+        gl_Position = aPosition;
+        vColor = thetaColor;
+    }
+    </script>
+
+    <script id="fragment-shader" type="x-shader/x-fragment">
+        #version 300 es
+        precision mediump float;
+        
+        out vec4 fColor;
+        in vec4 vColor;
+        
+        void
+        main()
+        {
+            fColor = vColor;
+        }
+        </script>
+
+    <script src="initShaders.js"></script>
+    <script src="MV.js"></script>
+    <script src="webgl-scripts.js"></script>
+</body>
+</html>
