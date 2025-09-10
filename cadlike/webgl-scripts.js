@@ -10,8 +10,10 @@ function showError(errorText) {
 
 // showError("This is a test error message.");
 
+// Global variables
 var gl;
-var n;
+var n = 0;
+var vertices = [];
 var index = 0;
 var bufferId;
 
@@ -34,13 +36,13 @@ function init() {
 
 
     // Initialize the vertex  positions.
-    var vertices = [
-        vec2(-0.5, -0.5),
-        vec2(0, 0.5),
-        vec2(0.5, -0.5),
-    ];
+    // var vertices = [
+    //     vec2(-0.5, -0.5),
+    //     vec2(0, 0.5),
+    //     vec2(0.5, -0.5),
+    // ];
 
-    n = vertices.length
+    // n = vertices.length
    
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.08, 0.08, 0.08, 1.0);
@@ -52,7 +54,7 @@ function init() {
     // Load the data into the GPU
     bufferId = gl.createBuffer(); //creating a vertex buffer object (VBO) on the GPU
     gl.bindBuffer(gl.ARRAY_BUFFER, bufferId ); //he binding operation makes this buffer the current buffer. Subsequent functions that put data in a buffer will use this buffer until we bind a different buffer
-    gl.bufferData(gl.ARRAY_BUFFER, flatten(vertices), gl.DYNAMIC_DRAW); //function to send the data to a buffer on the GPU
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.DYNAMIC_DRAW); //function to send the data to a buffer on the GPU
    //fungsi flatten ada di MV.js yang berfungsi mengubah JavaScript objects (e.g., vec2, or mat4) ke format data yang diterima oleh gl.bufferData.
     //gl.STATIC_DRAW means we are sending them once and displaying them
 
@@ -118,18 +120,30 @@ function init() {
             2 * mouseX / canvas.width - 1, 
             2 * (canvas.height - mouseY) / canvas.height - 1
         );
-        showError( "a mouse is clicked at " +t);
-        gl.bindBuffer( gl.ARRAY_BUFFER, bufferId );
-        gl.bufferSubData(gl.ARRAY_BUFFER, 8*index, flatten(t));
-        //numPositions[numPolygons]++;
-        index = (index + 1) % n;
+        showError("a mouse is clicked at " +t);
+        
+        if (n <= 2) {
+            vertices.push(t);
+            n = vertices.length;
+            gl.bindBuffer(gl.ARRAY_BUFFER, bufferId);
+            gl.bufferData(gl.ARRAY_BUFFER, flatten(vertices), gl.DYNAMIC_DRAW);
+        }
+        else {
+            gl.bindBuffer( gl.ARRAY_BUFFER, bufferId );
+            gl.bufferSubData(gl.ARRAY_BUFFER, 8*index, flatten(t));
+            // //numPositions[numPolygons]++;
+            index = (index + 1) % n;
+        }
+        // showError("n = " + n);
+
         // index++;
         // render();
     });
 
     document.getElementById("generate").addEventListener("click", render);
-
-    render();
+    gl.clearColor(0.08, 0.08, 0.08, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    // render();
 };
 
 function render() {
@@ -138,12 +152,24 @@ function render() {
     //gl.drawArrays(gl.TRIANGLES, 0, 3);
     gl.uniform4fv(thetaColor, vec4(Red, Green, Blue, Alpha));
 
-    if (flag==1) {
-        gl.drawArrays(gl.TRIANGLES, 0, n);
-    } else {
-        gl.drawArrays(gl.LINE_LOOP, 0, n);
+    if (n > 1){
+        if (flag==1) {
+            gl.drawArrays(gl.TRIANGLES, 0, n);
+        } else {
+            gl.drawArrays(gl.LINE_LOOP, 0, n);
+        }
     }
 
 }
 
 window.onload = init;
+
+window.onresize = function() {
+   var min = innerWidth;
+   if (innerHeight < min) {
+     min = innerHeight;
+   }
+   if (min < canvas.width || min < canvas.height) {
+      gl.viewport(0, canvas.height-min, min, min);
+   }
+};
