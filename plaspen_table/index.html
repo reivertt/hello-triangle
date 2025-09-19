@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
+    <title>WebGL App</title>
+    <style>
+        html, head, body {
+            margin: 0;
+            padding: 25px;
+            background-color: #2a2a2a;
+            color:#eee;
+        }
+        #gl-canvas {
+            background-color: #da6052;
+        }
+        #error-box {
+            min-width: 700px;
+            min-height: 700px;
+            color: #5fdfd8;
+            font-weight: 500;
+            font-size: 18pt;
+            border: 1px solid white;
+            padding: 25px;
+            /* margin-top: 20px; */
+        }
+
+        .error-box-title {
+            color: #eee;
+            border-bottom: 1px solid gray;
+        }
+
+        #tab {
+            white-space: pre;
+        }        
+    </style>
+</head>
+
+<body>
+    <div style="display:flex; gap:20px;">
+        <canvas id="gl-canvas" width="700" height="700"></canvas>
+        <div id="error-box">
+            <span class="error-box-title">Controls</span>
+                <div>
+                    X Axis Rotation - 0<input id="x_slide" type="range"
+                    min="0" max="360.0" step="1.0" value="30.0" />
+                    360.0 
+                </div>
+                <div>
+                    Y Axis  Rotation - 0<input id="y_slide" type="range"
+                    min="0" max="90.0" step="1.0" value="30.0" />
+                    90.0 
+                </div>
+                <div>
+                    Zoom - 0.2<input id="z_slide" type="range"
+                    min="0.2" max="2.0" step="0.05" value="1.0" />
+                    2.0 
+                </div>
+        </div>
+    </div>
+    
+    <!-- <div>
+        <div>
+            Red - 0<input id="red_slide" type="range"
+            min="0" max="1.0" step="0.1" value="0.3" />
+            1.0 
+        </div>
+        <div>
+            Green - 0<input id="green_slide" type="range"
+            min="0" max="1.0" step="0.1" value="0.0" />
+            1.0 
+        </div>
+        <div>
+            Blue - 0<input id="blue_slide" type="range"
+            min="0" max="1.0" step="0.1" value="0.5" />
+            1.0 
+        </div>
+        <div>
+            Transparency - 0<input id="alpha_slide" type="range"
+            min="0" max="1.0" step="0.1" value="1.0" />
+            1.0
+        </div>
+    </div> -->
+    
+    <!--     uniform mat4 projectionMatrix;     -->
+    <script id="vertex-shader" type="x-shader/x-vertex">
+    #version 300 es
+
+    in  vec4 aPosition;
+    in  vec4 aColor;
+    out vec4 vColor;
+
+    uniform mat4 modelViewMatrix;
+
+    void main()
+    {
+        vColor = aColor;
+        gl_Position = modelViewMatrix * aPosition;
+    }
+    </script>
+
+    <script id="fragment-shader" type="x-shader/x-fragment">
+    #version 300 es
+
+    precision mediump float;
+
+    in vec4 vColor;
+    out vec4 fColor;
+
+    void
+    main()
+    {
+        fColor = vColor;
+    }
+    </script>
+
+    <script src="initShaders.js"></script>
+    <script src="MV.js"></script>
+    <script src="webgl-scripts.js"></script>
+</body>
+</html>
