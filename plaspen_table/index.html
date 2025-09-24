@@ -16,7 +16,7 @@
         #error-box {
             min-width: 700px;
             min-height: 700px;
-            color: #5fdfd8;
+            color: #ff0000;
             font-weight: 500;
             font-size: 18pt;
             border: 1px solid white;
@@ -39,25 +39,30 @@
     <div style="display:flex; gap:20px;">
         <canvas id="gl-canvas" width="700" height="700"></canvas>
         <div id="error-box">
-            <span class="error-box-title">Controls</span>
-                <div>
-                    X Axis Rotation - 0<input id="x_slide" type="range"
-                    min="0" max="360.0" step="1.0" value="30.0" />
-                    360.0 
-                </div>
-                <div>
-                    Y Axis  Rotation - 0<input id="y_slide" type="range"
-                    min="0" max="90.0" step="1.0" value="30.0" />
-                    90.0 
-                </div>
-                <div>
-                    Zoom - 0.2<input id="z_slide" type="range"
-                    min="0.2" max="2.0" step="0.05" value="1.0" />
-                    2.0 
-                </div>
+            <span class="error-box-title">Error Box</span>
         </div>
     </div>
-    
+    <div>
+        X Axis Rotation - 0<input id="x_slide" type="range"
+        min="0" max="360.0" step="1.0" value="30.0" />
+        360.0 
+    </div>
+    <div>
+        Y Height  Rotation - -0.5<input id="y_slide" type="range"
+        min="-0.5" max="10.0" step="0.1" value="2.5" />
+        10.0 
+    </div>
+    <div>
+        Zoom - 0.2<input id="z_slide" type="range"
+        min="0.2" max="2.0" step="0.05" value="1.0" />
+        2.0 
+    </div>
+    <div>
+        <input type="checkbox" id="movement_toggle" value="true" checked>Toggle Movement</button>
+    </div>
+
+    <img src="image.jpg">
+
     <!-- <div>
         <div>
             Red - 0<input id="red_slide" type="range"
@@ -88,13 +93,14 @@
     in  vec4 aPosition;
     in  vec4 aColor;
     out vec4 vColor;
-
-    uniform mat4 modelViewMatrix;
+    
+    uniform mat4 worldMatrix;
+    uniform mat4 viewProjectionMatrix;
 
     void main()
     {
         vColor = aColor;
-        gl_Position = modelViewMatrix * aPosition;
+        gl_Position = viewProjectionMatrix * worldMatrix * aPosition;
     }
     </script>
 
@@ -113,7 +119,8 @@
     }
     </script>
 
-    <script src="initShaders.js"></script>
+    <!-- <script src="geometry.js"></script> -->
+    <script src="webgl-utils.js"></script>
     <script src="MV.js"></script>
     <script src="webgl-scripts.js"></script>
 </body>

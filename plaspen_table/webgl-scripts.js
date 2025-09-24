@@ -2,28 +2,176 @@
 
 var canvas;
 var gl;
-var cubes = 0;
-var axis = 0;
-var xAxis = 0;
-var yAxis = 1;
-var zAxis = 2;
-var theta = [0, 0, 0];
-var thetaLoc;
-var flag = true;
+
+var viewProjectionMatrixLoc;
+var worldMatrixLoc;
+
+var vBuffer;
+var cBuffer;
+var iBuffer;
+
 var numElements = 0;
-var ctm=[];
-var MVMLoc;
+var vertices = [];
+var vertexColors = [];
+var indices = [];
 
-// --- VARIABLES FOR ROTATION ---
-var xRotation = 30.0;
-var yRotation = 30.0;
+var flag = 1;
+var cameraAngle = 0;
+var xRotation = 0.0;
+var yHeight = 2.5;
 var zScale = 1.0;
+var lastFrameTime = 0;
 
-// --- CONSTANTS ---
-const TABLE_CUBES = 19;
-const CHAIR_CUBES = 11;
+init();
 
-var defaultColors = [
+function init() {
+    canvas = document.getElementById("gl-canvas");
+    if (!canvas) showError("Failed to retrieve the <canvas> element");
+    
+    gl = canvas.getContext('webgl2');
+    if (!gl) showError("WebGL 2.0 isn't available");
+
+    createSceneGeometry();
+
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.8, 0.9, 1.0, 1.0);
+    gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.CULL_FACE);
+
+    var program = initShaders(gl, "vertex-shader", "fragment-shader");
+    if (!program) showError("Error in shader initialization");
+    gl.useProgram(program);
+    
+    // --- BUFFERS ---
+    iBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+
+    cBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(vertexColors), gl.STATIC_DRAW);
+    
+    vBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(vertices), gl.STATIC_DRAW);
+    
+    if (!iBuffer || !cBuffer || !vBuffer) {
+        showError(`Failed to create buffers: i=${!!iBuffer} c=${!!cBuffer} v=${!!vBuffer}`)
+        return;
+    }
+
+    // --- LOCATIONS ---
+    var positionLoc = gl.getAttribLocation(program, "aPosition");
+    var colorLoc = gl.getAttribLocation(program, "aColor");
+    viewProjectionMatrixLoc = gl.getUniformLocation(program, "viewProjectionMatrix");
+    worldMatrixLoc = gl.getUniformLocation(program, 'worldMatrix');
+    
+    if (positionLoc < 0 || colorLoc < 0 || !viewProjectionMatrixLoc || !worldMatrixLoc) {
+        showError(`Failed to get attribs: pos=${positionLoc} col=${colorLoc} viewProjectionMatrix=${!!viewProjectionMatrixLoc} worldMatrix=${!!worldMatrixLoc}`)
+        return;
+    }
+    
+    gl.enableVertexAttribArray(positionLoc);
+    gl.enableVertexAttribArray(colorLoc);
+        
+    // gl.vertexAttribPointer(positionLoc, 3, gl.FLOAT, false, 0, 0);
+    // gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 0, 0);
+
+    // --- LISTENERS ---
+    document.getElementById("x_slide").oninput = (event) => { xRotation = parseFloat(event.target.value); };
+    document.getElementById("y_slide").oninput = (event) => { yHeight = parseFloat(event.target.value); };
+    document.getElementById("z_slide").oninput = (event) => { zScale = parseFloat(event.target.value); };
+    document.getElementById("movement_toggle").addEventListener('change', function() {
+        flag = this.checked ? 1 : 0
+    })
+
+    lastFrameTime = performance.now();
+    requestAnimationFrame(render);
+}
+
+function render(currentTime) {
+    const dt = (currentTime - lastFrameTime) / 1000;
+    lastFrameTime = currentTime;
+
+    cameraAngle += dt * radians(10 * flag);
+
+    canvas.width = canvas.clientWidth * devicePixelRatio;
+    canvas.height = canvas.clientHeight * devicePixelRatio;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    const cameraX = 4 * Math.sin(cameraAngle);
+    const cameraZ = 4 * Math.cos(cameraAngle);
+    var cameraY = yHeight
+    const eye = vec3(cameraX, cameraY, cameraZ);
+    const at = vec3(0, 0, 0);
+    const up = vec3(0, 1, 0);
+    const matView = lookAt(eye, at, up);
+    const matProj = perspective(60, canvas.width / canvas.height, 0.1, 100.0);
+    const matViewProj = mult(matProj, matView);
+
+    let matWorld = rotateY(xRotation);
+    // matWorld = mult(matWorld, rotateX(yRotation));
+    matWorld = mult(matWorld, scale(zScale, zScale, zScale));
+    
+    gl.uniformMatrix4fv(viewProjectionMatrixLoc, false, flatten(matViewProj));
+    gl.uniformMatrix4fv(worldMatrixLoc, false, flatten(matWorld));
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
+    gl.vertexAttribPointer(gl.getAttribLocation(gl.getParameter(gl.CURRENT_PROGRAM), "aPosition"), 3, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
+    gl.vertexAttribPointer(gl.getAttribLocation(gl.getParameter(gl.CURRENT_PROGRAM), "aColor"), 4, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuffer);
+
+    gl.drawElements(gl.TRIANGLES, numElements, gl.UNSIGNED_SHORT, 0);
+
+    requestAnimationFrame(render);
+}
+
+function createSceneGeometry(){
+    const woodColors = [
+        vec4(0.40, 0.29, 0.20, 1.0),  
+        vec4(0.51, 0.36, 0.31, 1.0),
+        vec4(0.91, 0.85, 0.82, 1.0),
+        vec4(0.80, 0.69, 0.60, 1.0),
+        vec4(0.25, 0.18, 0.13, 1.0),
+        vec4(0.32, 0.22, 0.16, 1.0),
+        vec4(0.69, 0.52, 0.39, 1.0),
+        vec4(0.62, 0.44, 0.31, 1.0)
+    ];
+
+    vertices.push(...floor());
+    vertexColors.push(
+        vec4(0.08, 0.08, 0.08, 1.0), // Dark grey for the floor
+        vec4(0.44, 0.44, 0.44, 1.0),
+        vec4(0.77, 0.77, 0.77, 1.0),
+        vec4(0.44, 0.44, 0.44, 1.0),
+    );
+    indices.push(0, 1, 2, 0, 2, 3); // Indices for the first 4 vertices
+
+    const tableVertices = table();
+    const chair1Vertices = chair([0, 0, 0.8]);
+    const chair2Vertices = chair([0, 0, -0.8]);
+
+    let allObjectVertices = [...tableVertices, ...chair1Vertices, ...chair2Vertices];
+
+    for (const v of allObjectVertices) {
+        vertices.push(v);
+    }
+
+    const numCubes = allObjectVertices.length / 8; // 8 vertices per cube
+    for (let i = 0; i < numCubes; i++) {
+        vertexColors.push(...woodColors);
+        const vertexOffset = 4 + (i * 8); // Start after the 4 floor vertices
+        indices.push(...cubeIndices(vertexOffset));
+    }
+    
+    numElements = indices.length;
+}
+var debugColors = [
     vec4(0.0, 0.0, 0.0, 1.0),  // black
     vec4(1.0, 0.0, 0.0, 1.0),  // red
     vec4(1.0, 1.0, 0.0, 1.0),  // yellow
@@ -33,122 +181,6 @@ var defaultColors = [
     vec4(1.0, 1.0, 1.0, 1.0),  // white
     vec4(0.0, 1.0, 1.0, 1.0),   // cyan
 ]
-
-var wood = [
-    vec4(0.40, 0.29, 0.20, 1.0),  
-    vec4(0.51, 0.36, 0.31, 1.0),
-    vec4(0.91, 0.85, 0.82, 1.0),
-    vec4(0.80, 0.69, 0.60, 1.0),
-    vec4(0.25, 0.18, 0.13, 1.0),
-    vec4(0.32, 0.22, 0.16, 1.0),
-    vec4(0.69, 0.52, 0.39, 1.0),
-    vec4(0.62, 0.44, 0.31, 1.0)
-];
-
-// --- DATA SETUP ---
-var vertices = [];
-var vertexColors = [];
-var indices = [];
-
-cubes += TABLE_CUBES + (CHAIR_CUBES * 2); // 2 chairs
-console.log(cubes)
-// Floor
-vertices.push(...floor(-0.5));
-vertexColors.push(
-    vec4(0.44, 0.44, 0.44, 1.0), // Dark grey for the floor
-    vec4(0.44, 0.44, 0.44, 1.0),
-    vec4(0.44, 0.44, 0.44, 1.0),
-    vec4(0.44, 0.44, 0.44, 1.0)
-);
-indices.push(0, 1, 2, 2, 3, 0); // Indices for the first 4 vertices
-
-
-// Structures
-vertices.push(...table());
-vertices = vertices.concat(chair([0,0,0.8]));
-vertices = vertices.concat(chair([0,0,-0.8]));
-// vertices = vertices.flat();
-
-for (let i = 0; i < cubes; i++) {
-    vertexColors.push(...wood);
-    const vertexOffset = 4 + (i * 8);
-    indices.push(...cubeIndices(vertexOffset));
-}
-
-numElements = indices.length;
-console.log(numElements)
-
-init();
-
-function init() {
-    canvas = document.getElementById("gl-canvas");
-    gl = canvas.getContext('webgl2');
-    if (!gl) alert("WebGL 2.0 isn't available");
-
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0.8, 0.9, 1.0, 1.0);
-    gl.enable(gl.DEPTH_TEST);
-
-    var program = initShaders(gl, "vertex-shader", "fragment-shader");
-    gl.useProgram(program);
-
-    var iBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
-
-    var cBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, flatten(vertexColors), gl.STATIC_DRAW);
-
-    var colorLoc = gl.getAttribLocation(program, "aColor");
-    gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(colorLoc);
-
-    var vBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, flatten(vertices), gl.STATIC_DRAW);
-
-    var positionLoc = gl.getAttribLocation(program, "aPosition");
-    gl.vertexAttribPointer(positionLoc, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(positionLoc);
-
-    MVMLoc = gl.getUniformLocation(program, "modelViewMatrix");
-
-    document.getElementById("x_slide").oninput = function(event) { 
-        xRotation = parseFloat(event.target.value); 
-        render();
-    };
-    
-    document.getElementById("y_slide").oninput = function(event) { 
-        yRotation = parseFloat(event.target.value); 
-        render();
-    };
-
-    document.getElementById("z_slide").oninput = function(event) {
-        zScale = parseFloat(event.target.value);
-        render();
-    };
-
-    render();
-}
-
-function render() {
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-    theta[0] = -yRotation; // y
-    theta[1] = xRotation; // x   
-
-    ctm = rotateX(theta[xAxis]);
-    ctm = mult(ctm, rotateY(theta[yAxis]));
-
-    var scaleMatrix = scale(zScale, zScale, zScale);
-    ctm = mult(ctm, scaleMatrix);
-
-    gl.uniformMatrix4fv(MVMLoc, false, flatten(ctm));
-    gl.drawElements(gl.TRIANGLES, numElements, gl.UNSIGNED_SHORT, 0);
-
-    requestAnimationFrame(render);
-}
 
 function cube(anchor, length, width, height, message="cube") {
     // anchor is the bottom center of the cube
@@ -186,12 +218,12 @@ function cubeIndices(offset) {
     return baseIndices.map(i => i + offset);
 }
 
-function floor(level=-0.5) {
+function floor(width=5) {
     var vertices = [
-        vec3(-2, level,  2),
-        vec3(-2, level, -2),
-        vec3( 2, level, -2),
-        vec3( 2, level,  2),
+        vec3(-width, -0.5, -width),
+        vec3(-width, -0.5,  width),
+        vec3( width, -0.5,  width),
+        vec3( width, -0.5, -width),
     ];
     // console.log(vertices);
     return vertices;
