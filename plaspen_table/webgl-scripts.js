@@ -15,7 +15,8 @@ var vertices = [];
 var vertexColors = [];
 var indices = [];
 
-var flag = 1;
+var movementFlag = 1;
+var projFlag = 1;
 var cameraAngle = 0;
 var xRotation = 0.0;
 var yHeight = 2.5;
@@ -82,7 +83,10 @@ function init() {
     document.getElementById("y_slide").oninput = (event) => { yHeight = parseFloat(event.target.value); };
     document.getElementById("z_slide").oninput = (event) => { zScale = parseFloat(event.target.value); };
     document.getElementById("movement_toggle").addEventListener('change', function() {
-        flag = this.checked ? 1 : 0
+        movementFlag = this.checked ? 1 : 0
+    })
+    document.getElementById("projection_toggle").addEventListener('change', function() {
+        projFlag = this.checked ? 1 : 0
     })
 
     lastFrameTime = performance.now();
@@ -93,7 +97,7 @@ function render(currentTime) {
     const dt = (currentTime - lastFrameTime) / 1000;
     lastFrameTime = currentTime;
 
-    cameraAngle += dt * radians(10 * flag);
+    cameraAngle += dt * radians(10 * movementFlag);
 
     canvas.width = canvas.clientWidth * devicePixelRatio;
     canvas.height = canvas.clientHeight * devicePixelRatio;
@@ -108,7 +112,7 @@ function render(currentTime) {
     const at = vec3(0, 0, 0);
     const up = vec3(0, 1, 0);
     const matView = lookAt(eye, at, up);
-    const matProj = perspective(60, canvas.width / canvas.height, 0.1, 100.0);
+    const matProj = projFlag == 1 ? perspective(45, canvas.width / canvas.height, 0.1, 100.0) : ortho(-2, 2, -0.5, 2, 0.1, 10.0);
     const matViewProj = mult(matProj, matView);
 
     let matWorld = rotateY(xRotation);
