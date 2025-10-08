@@ -43,65 +43,58 @@
         </div>
     </div>
     <div>
-        X Axis Rotation - 0<input id="x_slide" type="range"
-        min="0" max="360.0" step="1.0" value="30.0" />
-        360.0 
+        Camera - X Axis Rotation - 
+        0<input id="x_slide" type="range" min="0" max="360.0" step="1.0" value="30.0" />360.0 
     </div>
     <div>
-        Y Height  Rotation - -0.5<input id="y_slide" type="range"
-        min="-0.5" max="10.0" step="0.1" value="2.5" />
-        10.0 
+        Camera - Y Height  Rotation - 
+        -0.5<input id="y_slide" type="range" min="-0.5" max="10.0" step="0.1" value="2.5" />10.0 
     </div>
     <div>
-        Zoom - 0.2<input id="z_slide" type="range"
-        min="0.2" max="2.0" step="0.05" value="1.0" />
-        2.0 
+        Zoom - 
+        0.2<input id="z_slide" type="range" min="0.2" max="2.0" step="0.05" value="1.0" />2.0 
     </div>
     <div>
         <input type="checkbox" id="movement_toggle" value="true" checked>Toggle Movement</button>
-        <input type="checkbox" id="projection_toggle" value="true" checked>Toggle Projection - Orthogonal</button>
+        <input type="checkbox" id="projection_toggle" value="true" checked>Toggle Prespective - Orthogonal</button>
+        <input type="checkbox" id="light_movement_toggle" value="true" checked>Toggle Light Movement</button>
     </div>
-
+    <hr>
+    <h3>Lighting Controls</h3>
+    <div>
+        Rotating Light Speed - 
+        0<input id="rot_speed_slide" type="range" min="0.0" max="180.0" step="1.0" value="1.0" />180.0 
+    </div>
+    <div>
+        Static Light Y-Position - 
+        0.2<input id="static_y_slide" type="range" min="0.2" max="2.0" step="0.01" value="1.0" />2.0 
+    </div>
+    <div>
+        Specular Shininess (Exponent) - 
+        1.0<input id="shininess_slide" type="range" min="1.0" max="100.0" step="1.0" value="1.0" />100.0 
+    </div>
     <img src="image.jpg">
 
-    <!-- <div>
-        <div>
-            Red - 0<input id="red_slide" type="range"
-            min="0" max="1.0" step="0.1" value="0.3" />
-            1.0 
-        </div>
-        <div>
-            Green - 0<input id="green_slide" type="range"
-            min="0" max="1.0" step="0.1" value="0.0" />
-            1.0 
-        </div>
-        <div>
-            Blue - 0<input id="blue_slide" type="range"
-            min="0" max="1.0" step="0.1" value="0.5" />
-            1.0 
-        </div>
-        <div>
-            Transparency - 0<input id="alpha_slide" type="range"
-            min="0" max="1.0" step="0.1" value="1.0" />
-            1.0
-        </div>
-    </div> -->
-    
     <!--     uniform mat4 projectionMatrix;     -->
     <script id="vertex-shader" type="x-shader/x-vertex">
     #version 300 es
 
     in  vec4 aPosition;
-    in  vec4 aColor;
-    out vec4 vColor;
+    in  vec3 aNormal;
+    
+    out vec3 vNormal;
+    out vec3 vPosition;
     
     uniform mat4 worldMatrix;
     uniform mat4 viewProjectionMatrix;
+    uniform mat3 normalMatrix;
 
     void main()
     {
-        vColor = aColor;
-        gl_Position = viewProjectionMatrix * worldMatrix * aPosition;
+        vec4 worldPosition = worldMatrix * aPosition;
+        vPosition = worldPosition.xyz;
+        vNormal = normalMatrix * aNormal;
+        gl_Position = viewProjectionMatrix * worldPosition;
     }
     </script>
 
@@ -110,13 +103,45 @@
 
     precision mediump float;
 
-    in vec4 vColor;
+    in vec3 vNormal;
+    in vec3 vPosition;
+
     out vec4 fColor;
+
+    uniform vec4 uAmbientProduct;
+    uniform vec4 uDiffuseProduct;
+    uniform vec4 uSpecularProduct;
+    uniform float uShininess;
+    
+    uniform vec4 uLightPosition;
+    uniform vec3 uEyePosition;
 
     void
     main()
     {
-        fColor = vColor;
+        vec3 N = normalize(vNormal);
+        vec3 L;
+        if (uLightPosition.w == 0.0) {
+            L = normalize(uLightPosition.xyz);
+        } else {
+            L = normalize(uLightPosition.xyz - vPosition);
+        }
+        vec3 V = normalize(uEyePosition - vPosition);
+        vec3 H = normalize(L + V);
+        
+        vec4 ambient = uAmbientProduct;
+        vec4 diffuse = max(dot(L, N), 0.0) * uDiffuseProduct; 
+        vec4 specular = pow(max(dot(N, H), 0.0), uShininess) * uSpecularProduct;
+
+        if (dot(L, N) < 0.0) {
+            specular = vec4(0.0, 0.0, 0.0, 1.0);  
+        }
+
+        vec4 lighting = ambient + diffuse + specular;
+        vec4 modelColor = vec4(0.80, 0.69, 0.60, 1.0);
+
+        fColor = modelColor * lighting;
+        fColor.a = 1.0;
     }
     </script>
 
