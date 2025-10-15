@@ -67,7 +67,7 @@
     </div>
     <div>
         Static Light Y-Position - 
-        0.2<input id="static_y_slide" type="range" min="0.2" max="2.0" step="0.01" value="1.0" />2.0 
+        0.2<input id="static_y_slide" type="range" min="0.2" max="10.0" step="0.1" value="1.0" />10.0 
     </div>
     <div>
         Specular Shininess (Exponent) - 
@@ -81,9 +81,11 @@
 
     in  vec4 aPosition;
     in  vec3 aNormal;
+    in  vec2 aTexCoord;
     
     out vec3 vNormal;
     out vec3 vPosition;
+    out vec2 vTexCoord;
     
     uniform mat4 worldMatrix;
     uniform mat4 viewProjectionMatrix;
@@ -94,6 +96,7 @@
         vec4 worldPosition = worldMatrix * aPosition;
         vPosition = worldPosition.xyz;
         vNormal = normalMatrix * aNormal;
+        vTexCoord = aTexCoord;
         gl_Position = viewProjectionMatrix * worldPosition;
     }
     </script>
@@ -105,6 +108,7 @@
 
     in vec3 vNormal;
     in vec3 vPosition;
+    in vec2 vTexCoord;
 
     out vec4 fColor;
 
@@ -115,6 +119,7 @@
     
     uniform vec4 uLightPosition;
     uniform vec3 uEyePosition;
+    uniform sampler2D uTextureMap;
 
     void
     main()
@@ -138,9 +143,9 @@
         }
 
         vec4 lighting = ambient + diffuse + specular;
-        vec4 modelColor = vec4(0.80, 0.69, 0.60, 1.0);
+        vec4 textureColor = texture(uTextureMap, vTexCoord);
 
-        fColor = modelColor * lighting;
+        fColor = textureColor * lighting;
         fColor.a = 1.0;
     }
     </script>

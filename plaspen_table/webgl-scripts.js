@@ -10,6 +10,7 @@ var normalMatrixLoc;
 var vBuffer;
 var nBuffer;
 var iBuffer;
+var tBuffer;
 
 var numElements = 0;
 var vertices = [];
@@ -20,6 +21,10 @@ var lightPositionLoc;
 var ambientProductLoc, diffuseProductLoc, specularProductLoc;
 var shininessLoc;
 var eyePositionLoc;
+var texCoordLoc;
+
+var texture;
+var texSize = 64;
 
 var lightRotationAngle = 0.0;
 var staticLightY = 0.0;
@@ -39,6 +44,81 @@ const materialAmbient = vec4(0.1, 0.1, 0.1, 1.0);
 const materialDiffuse = vec4(0.7, 0.7, 0.7, 1.0);
 const materialSpecular = vec4(0.9, 0.9, 0.9, 1.0);
 const lightColor = vec4(0.8, 0.8, 0.8, 1.0);
+
+var image1 = new Array()
+for (var i =0; i<texSize; i++) image1[i] = new Array();
+for (var i =0; i<texSize; i++) {
+    for ( var j = 0; j < texSize; j++) {
+        image1[i][j] = new Float32Array(4);
+    }
+}
+for (var i =0; i<texSize; i++) {
+    for (var j=0; j<texSize; j++) {
+        var c = (((i & 0x8) == 0) ^ ((j & 0x8) == 0));
+        image1[i][j] = [c, c, c, 1];
+    }
+}
+
+function configureTexture(image) {
+    texture = gl.createTexture();
+    //gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+
+    // Flip the image's Y-axis to match WebGL's texture coordinates
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
+    //gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, texSize, texSize, 0,gl.RGBA, gl.UNSIGNED_BYTE, image);
+    
+    // Upload the image data to the texture
+    gl.texImage2D(
+        gl.TEXTURE_2D,     // Target (2D texture)
+        0,                 // Mipmap level
+        gl.RGBA,           // Internal format (how WebGL stores it)
+        gl.RGBA,           // Source format (image format)
+        gl.UNSIGNED_BYTE,  // Type of data
+        image              // The image object
+    );
+
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+    gl.bindTexture(gl.TEXTURE_2D, null);
+}
+
+function configureCheckboard(image) {
+    var texture = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, texSize, texSize, 0, gl.RGBA, gl.UNSIGNED_BYTE, image);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+}
+
+
+var image2 = new Image();
+image2.src = "wood.jpg";
+image2.onload = function() {
+    configureTexture(image2);
+};
+
+// var image2 = new Uint8Array(4*texSize*texSize);
+// for (var i = 0; i < texSize; i++)
+//     for (var j = 0; j < texSize; j++)
+//         for(var k =0; k<4; k++)
+//             image2[4*texSize*i+4*j+k] = 255*image1[i][j][k];
+
+var positionsArray = [];
+var colorsArray = [];
+var texCoordsArray = [];
+
+var texCoord = [
+    vec2(0, 0),
+    vec2(0, 1),
+    vec2(1, 1),
+    vec2(1, 0)
+];
 
 init();
 
@@ -73,6 +153,10 @@ function init() {
     gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, flatten(vertices), gl.STATIC_DRAW);
     
+    tBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, tBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(texCoordsArray), gl.STATIC_DRAW);
+    
     if (!iBuffer || !nBuffer || !vBuffer) {
         showError(`Failed to create buffers: i=${!!iBuffer} c=${!!nBuffer} v=${!!vBuffer}`)
         return;
@@ -81,6 +165,7 @@ function init() {
     // --- LOCATIONS ---
     var positionLoc = gl.getAttribLocation(program, "aPosition");
     var colorLoc = gl.getAttribLocation(program, "aNormal");
+    texCoordLoc = gl.getAttribLocation(program, 'aTexCoord');
 
     viewProjectionMatrixLoc = gl.getUniformLocation(program, "viewProjectionMatrix");
     worldMatrixLoc = gl.getUniformLocation(program, 'worldMatrix');
@@ -102,6 +187,7 @@ function init() {
     
     gl.enableVertexAttribArray(positionLoc);
     gl.enableVertexAttribArray(colorLoc);
+    gl.enableVertexAttribArray(texCoordLoc);
         
     gl.uniform4fv(ambientProductLoc, mult(materialAmbient, lightColor));
     gl.uniform4fv(diffuseProductLoc, mult(materialDiffuse, lightColor));
@@ -109,6 +195,9 @@ function init() {
 
     // gl.vertexAttribPointer(positionLoc, 3, gl.FLOAT, false, 0, 0);
     // gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 0, 0);
+    // gl.vertexAttribPointer(texCoordLoc, 2, gl.FLOAT, false, 0, 0);
+
+    gl.uniform1i(gl.getUniformLocation(program, "uTextureMap"), 0);
 
     // --- LISTENERS ---
     document.getElementById("x_slide").oninput = (event) => { xRotation = parseFloat(event.target.value); };
@@ -165,8 +254,8 @@ function render(currentTime) {
     gl.uniformMatrix3fv(normalMatrixLoc, false, flatten(matNormal));
 
     lightRotationAngle += dt * radians(rotationSpeed * lightMovementFlag);
-    const lightX = 3 * Math.sin(lightRotationAngle);
-    const lightZ = 3 * Math.cos(lightRotationAngle);
+    const lightX = 2 * Math.sin(lightRotationAngle);
+    const lightZ = 2 * Math.cos(lightRotationAngle);
     const lightPosition = vec4(lightX, staticLightY, lightZ, 1.0);
 
     gl.uniform4fv(lightPositionLoc, flatten(lightPosition));
@@ -179,6 +268,12 @@ function render(currentTime) {
     gl.bindBuffer(gl.ARRAY_BUFFER, nBuffer);
     gl.vertexAttribPointer(gl.getAttribLocation(gl.getParameter(gl.CURRENT_PROGRAM), "aNormal"), 3, gl.FLOAT, false, 0, 0);
 
+    gl.bindBuffer(gl.ARRAY_BUFFER, tBuffer);
+    gl.vertexAttribPointer(gl.getAttribLocation(gl.getParameter(gl.CURRENT_PROGRAM), "aTexCoord"), 2, gl.FLOAT, false, 0, 0);
+
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    // configureCheckboard(image2);
+
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuffer);
     gl.drawElements(gl.TRIANGLES, numElements, gl.UNSIGNED_SHORT, 0);
 
@@ -188,12 +283,14 @@ function createSceneGeometry() {
     vertices = [];
     vertexNormals = [];
     indices = [];
+    texCoordsArray = [];
 
     const floorVerts = floor();
     const floorNormal = vec3(0.0, 1.0, 0.0);
     for (let i = 0; i < floorVerts.length; i++) {
         vertices.push(floorVerts[i]);
         vertexNormals.push(floorNormal);
+        texCoordsArray.push(texCoord[i]);
     }
     indices.push(0, 1, 2, 0, 2, 3);
     let currentVertexIndex = 4;
@@ -232,6 +329,7 @@ function createSceneGeometry() {
 
             vertices.push(cubeVerts[faceIndices[0]], cubeVerts[faceIndices[1]], cubeVerts[faceIndices[2]], cubeVerts[faceIndices[3]]);
             vertexNormals.push(normal, normal, normal, normal);
+            texCoordsArray.push(texCoord[0], texCoord[1], texCoord[2], texCoord[3]);
             
             indices.push(
                 currentVertexIndex, currentVertexIndex + 1, currentVertexIndex + 2,
